@@ -1,35 +1,63 @@
-// calling the module
-var express = require("express");
+// this is needed for importing expressjs into our application
+const express = require("express");
+const appConfig = require("./config/appConfig");
+const fs = require("fs");
+const mongoose = require("mongoose");
+const cookieParser = require("cookie-parser");
+const bodyParser = require("body-parser");
 
-//creating an instance
-var app = express();
+//declaring an instance or creating an application instance
+const app = express();
 
-// we have to include events module - core nodejs
-var events = require("events");
+//middlewares
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cookieParser());
 
-// you have create an instance of event emitter
-var eventEmitter = new events.EventEmitter();
+// Bootstrap models
+let modelsPath = "./models";
+fs.readdirSync(modelsPath).forEach(function(file) {
+  if (~file.indexOf(".js")) {
+    console.log(file);
+    require(modelsPath + "/" + file);
+  }
+});
+// end Bootstrap models
 
-// a basic route
-app.get("/signup", function(req, res) {
-  // create a user
-  //save it
+// Bootstrap route
+let routesPath = "./routes";
+fs.readdirSync(routesPath).forEach(function(file) {
+  if (~file.indexOf(".js")) {
+    console.log("including the following file");
+    console.log(routesPath + "/" + file);
+    let route = require(routesPath + "/" + file);
+    route.setRouter(app);
+  }
+});
+// end bootstrap route
 
-  //send him a welcome email using event
-
-  var user = { name: "Aditya", email: "aditya@edwisor.com" };
-
-  // this is how event is emitted.
-  setTimeout(() => {
-    eventEmitter.emit("welcomeEmail", user);
-  }, 2000);
-
-  // simple response
-  console.log("sending response");
-  res.send("Hello World!");
+//listening the server - creating a local server
+app.listen(appConfig.port, () => {
+  console.log("CRUD API listening on port 3000!");
+  //creating the mongo db connection here
+  let db = mongoose.connect(
+    appConfig.db.uri,
+    { useNewUrlParser: true }
+  );
 });
 
-//listening on a port
-app.listen(3000, function() {
-  console.log("Example app listening on port 3000!");
-});
+// handling mongoose connection error
+mongoose.connection.on("error", function(err) {
+  console.log("database connection error");
+  console.log(err);
+}); // end mongoose connection error
+
+// handling mongoose success event
+mongoose.connection.on("open", function(err) {
+  if (err) {
+    console.log("database error");
+    console.log(err);
+  } else {
+    console.log("database connection open success");
+  }
+}); // end mongoose connection open handler
